@@ -1,2 +1,3 @@
 # 3d-reconstruction
-CMU Build-18 hackathon project 
+
+CMU Build18 buildathon project
