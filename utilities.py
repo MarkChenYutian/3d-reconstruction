@@ -1,6 +1,7 @@
 import pyrealsense2 as rs
 import numpy as np
 import cv2
+import open3d as o3d
 
 
 # Get the depth scale of [color sensor, depth sensor]
@@ -65,3 +66,19 @@ def deprojectPixelToPoints(intrinsic, depth_arr, x_range=(0, 1280), y_range=(0, 
         return rs.rs2_deproject_pixel_to_point(intrinsic[1], pt, depth_arr[pt[1], pt[0]])
 
     return np.array(list(map(deproject, pts)))
+
+def visualize_npz_file(fileName: str) -> None:
+    npz = np.load(fileName)
+    pts_3d, color_arr = npz["points"], npz["image"]
+    pts_bgr    = (color_arr / 255).flatten().reshape(720 * 1280, 3)
+    pts_rgb    = np.hstack((pts_bgr[:, 2:3], pts_bgr[:, 1:2], pts_bgr[:, 0:1]))
+
+    pts_cloud  = o3d.geometry.PointCloud()
+    pts_cloud.points = o3d.utility.Vector3dVector(pts_3d)
+    pts_cloud.colors = o3d.utility.Vector3dVector(pts_rgb)
+
+    o3d.visualization.draw_geometries([pts_cloud])
+
+
+if __name__ == "__main__":
+    visualize_npz_file("./data/cloud2.npz")

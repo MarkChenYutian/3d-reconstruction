@@ -7,26 +7,32 @@ from utilities import getDepthScale, removeMaskNoise, getIntrinsic, deprojectPix
 
 
 THRESHOLD = 1   # maximum distance, in meter
+AVG_FRAME = 10  # number of consecutive frames used to perform averaging
 
 
 def capture_one_frame(pipeline, metadata, name="realsense"):
     align = metadata["align"]
     scale = metadata["scale"]
     intrinsic  = metadata["intrinsic"]
+    temporal_avg = rs.temporal_filter()
 
-    frame = pipeline.wait_for_frames()
+    depth_frames = []
+    aligned_frame = None
+    for i in range(AVG_FRAME):
+        frame = pipeline.wait_for_frames()
+        # depth to color alignment
+        aligned_frame = align.process(frame)
+        depth_frames.append(aligned_frame.get_depth_frame())
 
-    # depth to color alignment
+    depth = None
+    for i in range(AVG_FRAME):
+        depth = temporal_avg.process(depth_frames[i])
     
-    aligned_frames = align.process(frame)
-
-    depth = aligned_frames.get_depth_frame()
-    color = aligned_frames.get_color_frame()
+    color = aligned_frame.get_color_frame()
 
     if not depth or not color: print("Fail to get depth/color frame")
 
-    depth = postprocessDepth(depth)
-
+    depth     = postprocessDepth(depth)
     depth_arr = np.asanyarray(depth.get_data()) # np.array [720 x 1280    ] dtype = uint16
     color_arr = np.asanyarray(color.get_data()) # np.array [720 x 1280 x 3] dtype = uint8
 
@@ -44,7 +50,6 @@ def capture_one_frame(pipeline, metadata, name="realsense"):
 
     o3d.visualization.draw_geometries([pts_cloud])
     np.savez(name, points = pts_3d, image = color_arr)
-
 
 
 def main_loop_fn(pipeline, metadata):
@@ -100,6 +105,10 @@ if __name__ == "__main__":
     }
 
     try:
+        # Preheat - allow auto-exposure to adjust
+        # Skip 5 first frames to give the Auto-Exposure time to adjust
+        for x in range(5):
+            pipeline.wait_for_frames()
         # while True: main_loop_fn(pipeline, metadata)
         capture_one_frame(pipeline, metadata, "data/cloud3")
     finally:
