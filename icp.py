@@ -10,12 +10,10 @@ def to_tensor(vec):
 def load_cloud(name):
     npz = np.load("data/{}.npz".format(name))
     points, image = npz["points"], npz["image"]
-    bgr = (image / 256).flatten().reshape(720 * 1280, 3)
-    rgb = np.hstack((bgr[:, 2:3], bgr[:, 1:2], bgr[:, 0:1]))
 
     cloud = o3d.geometry.PointCloud()
     cloud.points = o3d.utility.Vector3dVector(points)
-    cloud.colors = o3d.utility.Vector3dVector(rgb)
+    cloud.colors = o3d.utility.Vector3dVector(image)
 
     # o3d.visualization.draw_geometries([cloud])
     return cloud
@@ -32,13 +30,6 @@ def icp(source, target):
     print("Load point-clouds: ", time.time())
     source, target = to_tcloud(load_cloud(source)), to_tcloud(load_cloud(target))
     max_correspondence_distance = 10000
-    # callback_after_iteration = lambda updated_result_dict: print(
-    #     "Iteration Index: {}, Fitness: {}, Inlier RMSE: {},".format(
-    #         updated_result_dict["iteration_index"].item(),
-    #         updated_result_dict["fitness"].item(),
-    #         updated_result_dict["inlier_rmse"].item(),
-    #     )
-    # )
 
     print("ICP: ", time.time())
     res = o3d.t.pipelines.registration.icp(source, target, max_correspondence_distance)
@@ -53,7 +44,8 @@ def icp(source, target):
     source_new.transform(res.transformation)
 
     print("Visualize: ", time.time())
-    o3d.visualization.draw_geometries([source.to_legacy(), source_new.to_legacy()])
+    o3d.visualization.draw_geometries([source.to_legacy(), target.to_legacy()])
+    o3d.visualization.draw_geometries([source_new.to_legacy(), target.to_legacy()])
 
 
 def main():
