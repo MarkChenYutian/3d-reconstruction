@@ -8,7 +8,7 @@ from utilities import getDepthScale, getIntrinsic, deprojectPixelToPoints, postp
 THRESHOLD = 1   # maximum distance, in meter
 AVG_FRAME = 15  # number of consecutive frames used to perform averaging
 PRE_FRAME = 15  # number of frames used for preheat (adjust exposure, etc)
-PTS_SPACE = 5   # number of pixel skipped between two spatial point
+PTS_SPACE = 8   # number of pixel skipped between two spatial point
 
 
 def capture_one_frame(pipeline, metadata, name="realsense"):
@@ -54,11 +54,15 @@ def capture_one_frame(pipeline, metadata, name="realsense"):
 
     # add normal estimation, for surface reconstruction
     pts_cloud.estimate_normals()
-
-
-    # mesh, densities = o3d.geometry.Triang
-
     o3d.visualization.draw_geometries([pts_cloud])
+
+    # tetra_mesh, pt_map = o3d.geometry.TetraMesh.create_from_point_cloud(pts_cloud)
+    # o3d.visualization.draw_geometries([tetra_mesh])
+
+
+    # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pts_cloud, 0.3)
+    # o3d.visualization.draw_geometries([mesh])
+    
     np.savez(name, points = pts_cloud.points, image = pts_cloud.colors, step=PTS_SPACE)
 
 
@@ -88,7 +92,7 @@ if __name__ == "__main__":
             pipeline.wait_for_frames()
         
         # Create a capture
-        capture_one_frame(pipeline, metadata, "data/sparse_1")
+        capture_one_frame(pipeline, metadata, "data/rotate_3")
     finally:
         print("Program Exit. stopping RealSense pipeline ...")
         pipeline.stop()

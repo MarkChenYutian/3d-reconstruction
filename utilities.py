@@ -1,6 +1,5 @@
 import pyrealsense2 as rs
 import numpy as np
-import cv2
 import open3d as o3d
 
 
@@ -80,7 +79,6 @@ def visualize_npz_file(fileName: str) -> None:
 
 def removeOutlier(pointcloud):
     pointcloud_down = pointcloud.voxel_down_sample(voxel_size = 0.2)
-    # cl, ind = pointcloud_down.remove_radius_outlier(nb_points=32, radius=5)
     cl, ind = pointcloud_down.remove_statistical_outlier(nb_neighbors=20,
                                                          std_ratio=2.0)
     return cl
