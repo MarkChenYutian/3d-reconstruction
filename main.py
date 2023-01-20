@@ -1,13 +1,14 @@
 import pyrealsense2 as rs
 import numpy as np
 import open3d as o3d
-import cv2
 
-from utilities import getDepthScale, removeMaskNoise, getIntrinsic, deprojectPixelToPoints, postprocessDepth
+from utilities import getDepthScale, getIntrinsic, deprojectPixelToPoints, postprocessDepth, removeOutlier, samplingColor
 
 
 THRESHOLD = 1   # maximum distance, in meter
-AVG_FRAME = 10  # number of consecutive frames used to perform averaging
+AVG_FRAME = 15  # number of consecutive frames used to perform averaging
+PRE_FRAME = 15  # number of frames used for preheat (adjust exposure, etc)
+PTS_SPACE = 10
 
 
 def capture_one_frame(pipeline, metadata, name="realsense"):
@@ -40,7 +41,8 @@ def capture_one_frame(pipeline, metadata, name="realsense"):
     depth_arr  = np.where(valid_mask == 0, 0, depth_arr)
     color_arr  = np.where(valid_mask[:, :, np.newaxis] == 0, 0, color_arr)
 
-    pts_3d     = deprojectPixelToPoints(intrinsic, depth_arr, step=1)
+    pts_3d     = deprojectPixelToPoints(intrinsic, depth_arr, step=PTS_SPACE)
+    pts_bgr    = samplingColor(color_arr, step=PTS_SPACE)
     pts_bgr    = (color_arr / 255).flatten().reshape(720 * 1280, 3)
     pts_rgb    = np.hstack((pts_bgr[:, 2:3], pts_bgr[:, 1:2], pts_bgr[:, 0:1]))
 
@@ -48,41 +50,10 @@ def capture_one_frame(pipeline, metadata, name="realsense"):
     pts_cloud.points = o3d.utility.Vector3dVector(pts_3d)
     pts_cloud.colors = o3d.utility.Vector3dVector(pts_rgb)
 
+    pts_cloud  = removeOutlier(pts_cloud)
+
     o3d.visualization.draw_geometries([pts_cloud])
     np.savez(name, points = pts_3d, image = color_arr)
-
-
-def main_loop_fn(pipeline, metadata):
-    global THRESHOLD
-
-    align = metadata["align"]
-    scale = metadata["scale"]
-
-    frame = pipeline.wait_for_frames()
-
-    # depth to color alignment
-    aligned_frames = align.process(frame)
-
-    depth = aligned_frames.get_depth_frame()
-    color = aligned_frames.get_color_frame()
-
-    if not depth or not color: return
-
-    depth_arr = np.asanyarray(depth.get_data()) # np.array [720 x 1280    ] dtype = uint16
-    color_arr = np.asanyarray(color.get_data()) # np.array [720 x 1280 x 3] dtype = uint8
-
-    image_mask = np.where((depth_arr >  (THRESHOLD / scale)) | (depth_arr <= 0), 0, 1).astype(np.uint8)
-    image_mask = removeMaskNoise(image_mask, kernel_size=3)
-    depth_masked = image_mask * depth_arr
-
-    image_mask   = np.expand_dims(image_mask, axis=(2,))  # np.array [720 x 1280 x 1]
-    color_masked = image_mask * color_arr                 # boardcasting by np
-
-    # Show images
-    cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-    cv2.imshow('RealSense', color_masked)
-    cv2.waitKey(1)
-
 
 
 if __name__ == "__main__":
@@ -106,11 +77,12 @@ if __name__ == "__main__":
 
     try:
         # Preheat - allow auto-exposure to adjust
-        # Skip 5 first frames to give the Auto-Exposure time to adjust
-        for x in range(5):
+        # Skip first several frames to give the Auto-Exposure time to adjust
+        for x in range(PRE_FRAME):
             pipeline.wait_for_frames()
-        # while True: main_loop_fn(pipeline, metadata)
-        capture_one_frame(pipeline, metadata, "data/cloud3")
+        
+        # Create a capture
+        capture_one_frame(pipeline, metadata, "data/sparse_2")
     finally:
         print("Program Exit. stopping RealSense pipeline ...")
         pipeline.stop()

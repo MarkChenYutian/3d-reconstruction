@@ -24,14 +24,6 @@ def getIntrinsic(profile):
     return color_intrinsic, depth_intrinsic
 
 
-# remove noise points in depth mask by running nms
-# depth_mask: np.array [720 x 1280] dtype = uint8
-def removeMaskNoise(depth_mask, kernel_size=3):
-    dilated_mask = cv2.dilate(depth_mask, np.ones(kernel_size))
-    eroded_mask  = cv2.erode(dilated_mask, np.ones(kernel_size))
-    return eroded_mask
-
-
 def postprocessDepth(depth_frame):
     # Depth - Disparsity conversion
     depth_to_disparity = rs.disparity_transform(True )
@@ -39,10 +31,6 @@ def postprocessDepth(depth_frame):
     
     # Domain-transform Edge-preserving Smoothing
     spatial = rs.spatial_filter()
-    # spatial.set_option(rs.option.filter_magnitude, 5)
-    # spatial.set_option(rs.option.filter_smooth_alpha, 1)
-    # spatial.set_option(rs.option.filter_smooth_delta, 50)
-    # spatial.set_option(rs.option.holes_fill, 3) # do not open this
 
     depth_frame = depth_to_disparity.process(depth_frame)
     depth_frame = spatial.process(depth_frame)
@@ -60,12 +48,25 @@ def deprojectPixelToPoints(intrinsic, depth_arr, x_range=(0, 1280), y_range=(0, 
 
     mesh_x = np.expand_dims(mesh_x.flatten(), axis=(1,))
     mesh_y = np.expand_dims(mesh_y.flatten(), axis=(1,))
-    pts    = np.hstack((mesh_x, mesh_y)).tolist()
+    pts    = np.hstack((mesh_y, mesh_x)).tolist()
 
     def deproject(pt):
-        return rs.rs2_deproject_pixel_to_point(intrinsic[1], pt, depth_arr[pt[1], pt[0]])
+        return rs.rs2_deproject_pixel_to_point(intrinsic[1], pt, depth_arr[pt[0], pt[1]])
 
     return np.array(list(map(deproject, pts)))
+
+
+def samplingColor(color_arr, x_range=(0, 1280), y_range=(0, 720),  step=1):
+    mesh_x, mesh_y = np.meshgrid(
+        np.arange(x_range[0], x_range[1], step),
+        np.arange(y_range[0], y_range[1], step)
+    )
+    mesh_x = np.expand_dims(mesh_x.flatten(), axis=(1,))
+    mesh_y = np.expand_dims(mesh_y.flatten(), axis=(1,))
+    pts    = np.hstack((mesh_y, mesh_x))
+    print(pts)
+    return color_arr[pts[:, 0], pts[:, 1]]
+
 
 def visualize_npz_file(fileName: str) -> None:
     npz = np.load(fileName)
@@ -79,6 +80,13 @@ def visualize_npz_file(fileName: str) -> None:
 
     o3d.visualization.draw_geometries([pts_cloud])
 
+def removeOutlier(pointcloud):
+    pointcloud_down = pointcloud.voxel_down_sample(voxel_size = 0.2)
+    # cl, ind = pointcloud_down.remove_radius_outlier(nb_points=32, radius=5)
+    cl, ind = pointcloud_down.remove_statistical_outlier(nb_neighbors=20,
+                                                         std_ratio=2.0)
+    return cl
 
 if __name__ == "__main__":
-    visualize_npz_file("./data/cloud2.npz")
+    visualize_npz_file("./data/sparse_1.npz")
+    visualize_npz_file("./data/sparse_2.npz")
