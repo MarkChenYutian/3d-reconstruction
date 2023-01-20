@@ -27,23 +27,18 @@ def to_tcloud(cloud):
 
 
 def icp(source, target):
-    print("Load point-clouds: ", time.time())
     source, target = to_tcloud(load_cloud(source)), to_tcloud(load_cloud(target))
+    target.estimate_normals()
     max_correspondence_distance = 10000
+    estimation_method = o3d.t.pipelines.registration.TransformationEstimationForColoredICP()
 
-    print("ICP: ", time.time())
-    res = o3d.t.pipelines.registration.icp(source, target, max_correspondence_distance)
+    start = time.time()
+    res = o3d.t.pipelines.registration.icp(source, target, max_correspondence_distance, estimation_method=estimation_method)
+    print(time.time() - start)
 
-    print("Print stats: ", time.time())
-    print(" - Fitness: ", res.fitness)
-    print(" - RMSE: ", res.inlier_rmse)
-    print(" - Transformation: ", res.transformation)
-
-    print("Transform: ", time.time())
     source_new = source.clone()
     source_new.transform(res.transformation)
 
-    print("Visualize: ", time.time())
     o3d.visualization.draw_geometries([source.to_legacy(), target.to_legacy()])
     o3d.visualization.draw_geometries([source_new.to_legacy(), target.to_legacy()])
 
