@@ -8,7 +8,7 @@ from utilities import getDepthScale, getIntrinsic, deprojectPixelToPoints, postp
 THRESHOLD = 1   # maximum distance, in meter
 AVG_FRAME = 15  # number of consecutive frames used to perform averaging
 PRE_FRAME = 15  # number of frames used for preheat (adjust exposure, etc)
-PTS_SPACE = 8   # number of pixel skipped between two spatial point
+PTS_SPACE = 5   # number of pixel skipped between two spatial point
 
 
 def capture_one_frame(pipeline, metadata, name="realsense"):
@@ -92,7 +92,7 @@ if __name__ == "__main__":
             pipeline.wait_for_frames()
         
         # Create a capture
-        capture_one_frame(pipeline, metadata, "data/rotate_3")
+        capture_one_frame(pipeline, metadata, "data/rotate_1")
     finally:
         print("Program Exit. stopping RealSense pipeline ...")
         pipeline.stop()

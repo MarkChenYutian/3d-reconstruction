@@ -84,4 +84,5 @@ def removeOutlier(pointcloud):
     return cl
 
 if __name__ == "__main__":
-    visualize_npz_file("./data/sparse_1.npz")
+    visualize_npz_file("./data/rotate_1.npz")
+    visualize_npz_file("./data/rotate_3.npz")
