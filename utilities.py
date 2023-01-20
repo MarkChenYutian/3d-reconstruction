@@ -31,6 +31,26 @@ def removeMaskNoise(depth_mask, kernel_size=3):
     return eroded_mask
 
 
+def postprocessDepth(depth_frame):
+    # Depth - Disparsity conversion
+    depth_to_disparity = rs.disparity_transform(True )
+    disparity_to_depth = rs.disparity_transform(False)
+    
+    # Domain-transform Edge-preserving Smoothing
+    spatial = rs.spatial_filter()
+    # spatial.set_option(rs.option.filter_magnitude, 5)
+    # spatial.set_option(rs.option.filter_smooth_alpha, 1)
+    # spatial.set_option(rs.option.filter_smooth_delta, 50)
+    # spatial.set_option(rs.option.holes_fill, 3) # do not open this
+
+    depth_frame = depth_to_disparity.process(depth_frame)
+    depth_frame = spatial.process(depth_frame)
+    depth_frame = disparity_to_depth.process(depth_frame)
+
+
+    return depth_frame
+
+
 def deprojectPixelToPoints(intrinsic, depth_arr, x_range=(0, 1280), y_range=(0, 720), step=20):
     mesh_x, mesh_y = np.meshgrid(
         np.arange(x_range[0], x_range[1], step),
@@ -40,5 +60,8 @@ def deprojectPixelToPoints(intrinsic, depth_arr, x_range=(0, 1280), y_range=(0, 
     mesh_x = np.expand_dims(mesh_x.flatten(), axis=(1,))
     mesh_y = np.expand_dims(mesh_y.flatten(), axis=(1,))
     pts    = np.hstack((mesh_x, mesh_y)).tolist()
-    deproject = lambda pt: rs.rs2_deproject_pixel_to_point(intrinsic[0], pt, depth_arr[640, 360])
-    return list(map(deproject, pts))
+
+    def deproject(pt):
+        return rs.rs2_deproject_pixel_to_point(intrinsic[1], pt, depth_arr[pt[1], pt[0]])
+
+    return np.array(list(map(deproject, pts)))
