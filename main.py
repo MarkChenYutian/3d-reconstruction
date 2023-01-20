@@ -8,7 +8,7 @@ from utilities import getDepthScale, getIntrinsic, deprojectPixelToPoints, postp
 THRESHOLD = 1   # maximum distance, in meter
 AVG_FRAME = 15  # number of consecutive frames used to perform averaging
 PRE_FRAME = 15  # number of frames used for preheat (adjust exposure, etc)
-PTS_SPACE = 10
+PTS_SPACE = 5   # number of pixel skipped between two spatial point
 
 
 def capture_one_frame(pipeline, metadata, name="realsense"):
@@ -42,8 +42,8 @@ def capture_one_frame(pipeline, metadata, name="realsense"):
     color_arr  = np.where(valid_mask[:, :, np.newaxis] == 0, 0, color_arr)
 
     pts_3d     = deprojectPixelToPoints(intrinsic, depth_arr, step=PTS_SPACE)
-    pts_bgr    = samplingColor(color_arr, step=PTS_SPACE)
-    pts_bgr    = (color_arr / 255).flatten().reshape(720 * 1280, 3)
+    color_arr  = samplingColor(color_arr, step=PTS_SPACE)
+    pts_bgr    = (color_arr / 255).flatten().reshape(-1, 3)
     pts_rgb    = np.hstack((pts_bgr[:, 2:3], pts_bgr[:, 1:2], pts_bgr[:, 0:1]))
 
     pts_cloud  = o3d.geometry.PointCloud()
@@ -52,8 +52,14 @@ def capture_one_frame(pipeline, metadata, name="realsense"):
 
     pts_cloud  = removeOutlier(pts_cloud)
 
+    # add normal estimation, for surface reconstruction
+    pts_cloud.estimate_normals()
+
+
+    # mesh, densities = o3d.geometry.Triang
+
     o3d.visualization.draw_geometries([pts_cloud])
-    np.savez(name, points = pts_3d, image = color_arr)
+    np.savez(name, points = pts_cloud.points, image = pts_cloud.colors, step=PTS_SPACE)
 
 
 if __name__ == "__main__":
@@ -82,7 +88,7 @@ if __name__ == "__main__":
             pipeline.wait_for_frames()
         
         # Create a capture
-        capture_one_frame(pipeline, metadata, "data/sparse_2")
+        capture_one_frame(pipeline, metadata, "data/sparse_1")
     finally:
         print("Program Exit. stopping RealSense pipeline ...")
         pipeline.stop()
