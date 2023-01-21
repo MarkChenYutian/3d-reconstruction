@@ -39,7 +39,7 @@ def postprocessDepth(depth_frame):
     return depth_frame
 
 
-def deprojectPixelToPoints(intrinsic, depth_arr, x_range=(0, 1280), y_range=(0, 720), step=20):
+def deprojectPixelToPoints(intrinsic, depth_arr, x_range=(0, 1280), y_range=(0, 720), step=1):
     mesh_x, mesh_y = np.meshgrid(
         np.arange(x_range[0], x_range[1], step),
         np.arange(y_range[0], y_range[1], step)
@@ -52,7 +52,11 @@ def deprojectPixelToPoints(intrinsic, depth_arr, x_range=(0, 1280), y_range=(0, 
     def deproject(pt):
         return rs.rs2_deproject_pixel_to_point(intrinsic[1], pt, depth_arr[pt[1], pt[0]])
 
-    return np.array(list(map(deproject, pts)))
+    T = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
+
+    pts_3d = np.array(list(map(deproject, pts)))
+    pts_3d = pts_3d @ T
+    return pts_3d
 
 
 def samplingColor(color_arr, x_range=(0, 1280), y_range=(0, 720),  step=1):
@@ -66,6 +70,32 @@ def samplingColor(color_arr, x_range=(0, 1280), y_range=(0, 720),  step=1):
     print(pts.shape)
     return color_arr[pts[:, 0], pts[:, 1]]
 
+
+def sample_cloud(pts_cloud, step=5):
+    pts_vec = np.asarray(pts_cloud.points)
+    col_vec = np.asarray(pts_cloud.colors)
+    print("Original:", pts_vec.shape)
+    pts_idx = np.arange(0, pts_vec.shape[0], step)
+    pts_sampled = pts_vec[pts_idx]
+    col_sampled = col_vec[pts_idx]
+
+    print("Sampled:", pts_sampled.shape)
+
+    pts_cloud_sampled = o3d.geometry.PointCloud()
+    pts_cloud_sampled.points = o3d.utility.Vector3dVector(pts_sampled)
+    pts_cloud_sampled.colors = o3d.utility.Vector3dVector(col_sampled)
+    return pts_cloud_sampled
+
+
+def load_cloud(name):
+    npz = np.load("data/{}.npz".format(name))
+    points, image = npz["points"], npz["image"]
+
+    cloud = o3d.geometry.PointCloud()
+    cloud.points = o3d.utility.Vector3dVector(points)
+    cloud.colors = o3d.utility.Vector3dVector(image)
+    
+    return cloud
 
 def visualize_npz_file(fileName: str) -> None:
     npz = np.load(fileName)
