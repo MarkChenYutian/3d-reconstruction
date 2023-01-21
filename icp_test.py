@@ -90,9 +90,10 @@ if __name__ == "__main__":
     #             merge(load_cloud("real_1"), load_cloud("real_0")),
     #             load_cloud("real_2")
     #          )
-    merged = load_cloud("real_1")
-    for i in range(2, 13):
+    merged = load_cloud("real_0")
+    for i in range(1, 11):
         merged = merge(merged, load_cloud("real_" + str(i)))
+    # merged = merge(merge(load_cloud("rotate_1"), load_cloud("rotate_2")), load_cloud("rotate_3"))
     
     merged.estimate_normals()
     o3d.visualization.draw_geometries([merged])

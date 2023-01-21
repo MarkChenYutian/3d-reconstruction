@@ -54,7 +54,7 @@ def capture_one_frame(pipeline, metadata, name="realsense"):
 
     # add normal estimation, for surface reconstruction
     pts_cloud.estimate_normals()
-    # o3d.visualization.draw_geometries([pts_cloud])
+    o3d.visualization.draw_geometries([pts_cloud])
 
     # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
     # pts_cloud, o3d.utility.DoubleVector([5, 50]))
