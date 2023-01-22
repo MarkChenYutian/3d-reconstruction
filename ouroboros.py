@@ -2,12 +2,10 @@ import numpy as np
 import open3d as o3d
 
 
-from utilities import load_cloud
+from utilities import load_cloud, mergeClouds
 from cpu_icp import cpu_icp
-from gpu_icp import gpu_icp
 
-
-icp = gpu_icp
+icp = cpu_icp
 
 
 def merge():
@@ -39,9 +37,16 @@ def merge():
     for i in range(24):
         prefixes.append(t)
         t = t @ transitions_updated[(start + i) % 24]
-    for i in range(24):
+    for i in range(0, 24, 6):
         geometries.append(clouds[(start + i) % 24].transform(prefixes[i]))
-    o3d.visualization.draw_geometries(geometries)
+    
+    merged = mergeClouds(geometries)
+
+    np.savez("./data/full_export", points = merged.points, image = merged.colors)
+
+    o3d.io.write_point_cloud("./data/full.pts", merged)
+    
+    o3d.visualization.draw_geometries([merged])
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# import pyrealsense2 as rs
+import pyrealsense2 as rs
 import numpy as np
 import open3d as o3d
 
@@ -113,6 +113,41 @@ def removeOutlier(pointcloud):
                                                          std_ratio=2.0)
     return cl
 
+
+def removeSmallCluster(pointcloud):
+    clusters = np.array(pointcloud.cluster_dbscan(eps=20, min_points=800, print_progress=True))
+    bad_pts  = (clusters == -1).nonzero()[0].tolist()
+    pointcloud = pointcloud.select_by_index(bad_pts, invert=True)
+    return pointcloud
+
+
+def removePlane(pointcloud):
+    plane_model, inliers = pointcloud.segment_plane(distance_threshold=8, ransac_n=3, num_iterations=3000)
+    clean_points = pointcloud.select_by_index(inliers, invert=True)
+    return removeOutlier(removeSmallCluster(clean_points))
+
+
+def mergeClouds(clouds):
+    pts = o3d.geometry.PointCloud()
+    for cloud in clouds:
+        new_pts = cloud.points
+        new_col = cloud.colors
+        all_pts = pts.points
+        all_col = pts.colors
+
+        merge_pts  = np.concatenate([all_pts, new_pts], axis=0)
+        merge_col  = np.concatenate([all_col, new_col], axis=0)
+        pts.points = o3d.utility.Vector3dVector(merge_pts)
+        pts.colors = o3d.utility.Vector3dVector(merge_col)
+
+    return pts
+
 if __name__ == "__main__":
-    visualize_npz_file("./data/rotate_1.npz")
-    visualize_npz_file("./data/rotate_3.npz")
+    # visualize_npz_file("./data/rotate_3.npz")
+    for i in range(24):
+        print("Cleaning ... " + str(i))
+        cloud = load_cloud("demo/real_" + str(i))
+        cloud = removePlane(cloud)
+        o3d.visualization.draw_geometries([cloud])
+
+        np.savez("./data/demo_noground/real_" + str(i), points = cloud.points, image = cloud.colors)

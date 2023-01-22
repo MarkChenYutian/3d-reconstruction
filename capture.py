@@ -104,6 +104,6 @@ def capture(fileName):
 if __name__ == "__main__":
     cnt = 0
     while True:
-        capture("data/chips/real_" + str(cnt))
+        capture("data/demo/real_" + str(cnt))
         input()
         cnt += 1
