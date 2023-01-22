@@ -19,20 +19,20 @@ def to_tcloud(cloud):
 def icp(source_cloud, target_cloud):
     source, target = to_tcloud(source_cloud), to_tcloud(target_cloud)
     target.estimate_normals()
-    max_correspondence_distance = 10000
+    max_correspondence_distance = 100
     init_source_to_target = o3d.core.Tensor.eye(4, o3d.core.Dtype.Float32)
 
-    estimation_method = (
-        o3d.t.pipelines.registration.TransformationEstimationForColoredICP()
-    )
-    # sigma = 10
     # estimation_method = (
-    #     o3d.t.pipelines.registration.TransformationEstimationForColoredICP(
-    #         o3d.t.pipelines.registration.robust_kernel.RobustKernel(
-    #             o3d.t.pipelines.registration.robust_kernel.RobustKernelMethod.TukeyLoss, sigma
-    #         )
-    #     )
+    #     o3d.t.pipelines.registration.TransformationEstimationForColoredICP()
     # )
+    sigma = 10
+    estimation_method = (
+        o3d.t.pipelines.registration.TransformationEstimationForColoredICP(
+            o3d.t.pipelines.registration.robust_kernel.RobustKernel(
+                o3d.t.pipelines.registration.robust_kernel.RobustKernelMethod.TukeyLoss, sigma
+            )
+        )
+    )
     # criteria = o3d.t.pipelines.registration.ICPConvergenceCriteria(max_iteration=3)
 
     voxel_size = 1
@@ -86,13 +86,9 @@ def merge(source, target):
 
 
 if __name__ == "__main__":
-    # merged = merge(
-    #             merge(load_cloud("real_1"), load_cloud("real_0")),
-    #             load_cloud("real_2")
-    #          )
-    merged = load_cloud("real_0")
+    merged = load_cloud("complex/real_0")
     for i in range(1, 11):
-        merged = merge(merged, load_cloud("real_" + str(i)))
+        merged = merge(merged, load_cloud("complex/real_" + str(i)))
     # merged = merge(merge(load_cloud("rotate_1"), load_cloud("rotate_2")), load_cloud("rotate_3"))
     
     merged.estimate_normals()
