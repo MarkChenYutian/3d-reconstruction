@@ -3,17 +3,28 @@ import open3d as o3d
 
 
 from utilities import load_cloud, sample_cloud
-from regular_icp import regular_icp
+from multi_scale_icp import multi_scale_icp
+
+
+def to_tensor(vec):
+    return o3d.core.Tensor(np.asarray(vec))
+
+
+def to_tcloud(cloud):
+    tcloud = o3d.t.geometry.PointCloud()
+    tcloud.point.positions = to_tensor(cloud.points)
+    tcloud.point.colors = to_tensor(cloud.colors)
+    return tcloud
 
 
 def merge(source, target):
-    source_down = sample_cloud(source, step=10)
-    target_down = sample_cloud(target, step=10)
+    source_down = sample_cloud(source, step=1)
+    target_down = sample_cloud(target, step=1)
 
-    T = regular_icp(source_down, target_down)
+    T = multi_scale_icp(to_tcloud(source_down), to_tcloud(target_down))
     print(T)
 
-    source_t = source.transform(T)
+    source_t = source.transform(T.numpy())
 
     source_pts = np.asarray(source_t.points)
     source_col = np.asarray(source_t.colors)
@@ -34,6 +45,6 @@ def merge(source, target):
 
 
 if __name__ == "__main__":
-    merged = load_cloud("complex/real_1")
-    for i in range(2, 11):
-        merged = merge(merged, load_cloud("complex/real_" + str(i)))
+    merged = load_cloud("chips/real_0")
+    for i in range(1, 8):
+        merged = merge(merged, load_cloud("chips/real_" + str(i)))
