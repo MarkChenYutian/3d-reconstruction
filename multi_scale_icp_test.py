@@ -7,10 +7,11 @@ from regular_icp import regular_icp
 
 
 def merge(source, target):
-    source_down = sample_cloud(source, step=50)
-    target_down = sample_cloud(target, step=50)
+    source_down = sample_cloud(source, step=10)
+    target_down = sample_cloud(target, step=10)
 
     T = regular_icp(source_down, target_down)
+    print(T)
 
     source_t = source.transform(T)
 
@@ -33,6 +34,6 @@ def merge(source, target):
 
 
 if __name__ == "__main__":
-    merged = load_cloud("complex/real_0")
-    for i in range(1, 11):
+    merged = load_cloud("complex/real_1")
+    for i in range(2, 11):
         merged = merge(merged, load_cloud("complex/real_" + str(i)))
