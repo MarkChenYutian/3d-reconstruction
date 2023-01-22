@@ -4,12 +4,16 @@ import open3d as o3d
 
 from utilities import load_cloud
 from cpu_icp import cpu_icp
+from gpu_icp import gpu_icp
+
+
+icp = gpu_icp
 
 
 def merge():
     clouds = [load_cloud("full_noground/real_{}".format(i)) for i in range(24)]
     dists = {3: 5, 10: 8, 11: 13, 12: 25, 13: 10}  # 13: bad
-    transitions = [cpu_icp(clouds[i], clouds[(i + 1) % 24], dists.get(i, 35)) for i in range(24)]
+    transitions = [icp(clouds[i], clouds[(i + 1) % 24], dists.get(i, 35)) for i in range(24)]
 
     # spot correction for 13
     t = np.eye(4, 4)
@@ -18,7 +22,7 @@ def merge():
         t = t @ transitions[start % 24]
         start += 1
     t = np.linalg.inv(t)
-    transitions[13] = cpu_icp(clouds[13], clouds[14], 5, init=t)
+    transitions[13] = icp(clouds[13], clouds[14], 5, init=t)
 
     transitions_updated = []
     for i in range(24):
@@ -26,7 +30,7 @@ def merge():
         for j in range(23):
             t = t @ transitions[(i + j + 1) % 24]
         t = np.linalg.inv(t)
-        transitions_updated.append(cpu_icp(clouds[i], clouds[(i + 1) % 24], 5, init=t))
+        transitions_updated.append(icp(clouds[i], clouds[(i + 1) % 24], 5, init=t))
 
     start = 10
     t = np.eye(4, 4)

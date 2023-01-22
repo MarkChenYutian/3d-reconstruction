@@ -3,7 +3,7 @@ import open3d as o3d
 
 
 from utilities import load_cloud
-from cpu_icp import cpu_icp
+from cpu_icp import icp
 
 
 def clean(cloud, preview=False, bogus=False):
@@ -17,7 +17,7 @@ def clean(cloud, preview=False, bogus=False):
 def merge(target, source, preview=False, dist=35):
     # source = source.uniform_down_sample(1)
     # target = target.uniform_down_sample(1)
-    T = cpu_icp(source, target, dist)
+    T = icp(source, target, dist)
     # T = np.eye(4, 4)
     # print(T)
 
