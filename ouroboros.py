@@ -1,3 +1,4 @@
+import numpy as np
 import open3d as o3d
 
 
@@ -6,12 +7,37 @@ from cpu_icp import cpu_icp
 
 
 def merge():
-    zero = [load_cloud("full_noground/real_{}".format(i)) for i in range(24)]
-    temp = [load_cloud("full_noground/real_{}".format(i)) for i in range(24)]
-    D = {3: 5, 10: 8, 11: 13, 12: 25, 13: 1}  # 13: bad
+    clouds = [load_cloud("full_noground/real_{}".format(i)) for i in range(24)]
+    dists = {3: 5, 10: 8, 11: 13, 12: 25, 13: 10}  # 13: bad
+    transitions = [cpu_icp(clouds[i], clouds[(i + 1) % 24], dists.get(i, 35)) for i in range(24)]
+
+    # spot correction for 13
+    t = np.eye(4, 4)
+    start = 14
+    for i in range(23):
+        t = t @ transitions[start % 24]
+        start += 1
+    t = np.linalg.inv(t)
+    transitions[13] = cpu_icp(clouds[13], clouds[14], 5, init=t)
+
+    transitions_updated = []
     for i in range(24):
-        t = cpu_icp(zero[i], zero[(i + 1) % 24], D.get(i, 35))
-        o3d.visualization.draw_geometries([zero[i], temp[(i + 1) % 24].transform(t)])
+        t = np.eye(4, 4)
+        for j in range(23):
+            t = t @ transitions[(i + j + 1) % 24]
+        t = np.linalg.inv(t)
+        transitions_updated.append(cpu_icp(clouds[i], clouds[(i + 1) % 24], 5, init=t))
+
+    start = 10
+    t = np.eye(4, 4)
+    prefixes = []
+    geometries = []
+    for i in range(24):
+        prefixes.append(t)
+        t = t @ transitions_updated[(start + i) % 24]
+    for i in range(24):
+        geometries.append(clouds[(start + i) % 24].transform(prefixes[i]))
+    o3d.visualization.draw_geometries(geometries)
 
 
 if __name__ == "__main__":
